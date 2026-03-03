@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Data Barang Warung</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <header>
+      <h2>📦 Gudang Harga Warung</h2>
+      <!-- FIX: Tambah class dark-toggle agar cocok dengan CSS -->
+      <button id="toggleDark" class="dark-toggle">🌙 Mode Gelap</button>
+    </header>
+
+    <div class="content">
+      <input type="text" id="search" placeholder="🔍 Cari barang...">
+      <div class="filter-wrapper">
+      <button class="filter-btn active" data-kategori="">Semua</button>
+      <button class="filter-btn" data-kategori="Mie Instan">Mie Instan</button>
+      <button class="filter-btn" data-kategori="Minuman">Minuman</button>
+      <button class="filter-btn" data-kategori="Snack">Snack</button>
+      <button class="filter-btn" data-kategori="Rokok">Rokok</button>
+      <button class="filter-btn" data-kategori="Sembako">Sembako</button>
+      </div>
+      <div id="table" class="barang-list">
+        <table>
+          <thead>
+            <tr>
+              <th>Nama</th>
+              <th>Harga</th>
+              <th>Stok</th>
+              <th>Kategori</th>
+              <th>Satuan</th>
+              <th>Aksi</th>
+            </tr>
+          </thead>
+          <tbody id="tabelBarang"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <button class="fab" id="openModal">＋</button>
+  </div>
+
+  <!-- Form Popup -->
+  <div id="modal" class="modal">
+    <div class="modal-content">
+      <!-- FIX: Tambah tombol tutup modal -->
+      <button class="close-btn" id="closeModal">✕</button>
+      <h3>📝 Data Barang</h3>
+      <form id="barangForm">
+        <input type="hidden" id="docId">
+        <input type="text" id="nama" placeholder="Nama Barang" required>
+        <input type="number" id="harga" placeholder="Harga" min="0" required>
+        <input type="number" id="stok" placeholder="Stok" min="0" required>
+
+        <select id="kategori" required>
+          <option value="">Pilih Kategori</option>
+          <option>Mie Instan</option>
+          <option>Minuman</option>
+          <option>Snack</option>
+          <option>Rokok</option>
+          <option>Sembako</option>
+        </select>
+
+        <select id="satuan" required>
+          <option value="">Pilih Satuan</option>
+          <option>pcs</option>
+          <option>pack</option>
+          <option>rtg</option>
+          <option>dus</option>
+          <option>botol</option>
+          <option>kg</option>
+          <option>½</option>
+          <option>¼</option>
+        </select>
+
+        <button type="submit" class="btn-simpan">💾 Simpan</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Firebase CDN -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
