@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Warung Barokah</title>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ==================== LOGIN PAGE ==================== -->
+  <div id="loginPage" class="login-overlay">
+    <div class="login-card">
+      <div class="login-logo">🏪</div>
+      <h2 class="login-title">Warung Barokah</h2>
+      <p class="login-subtitle">Masuk untuk mengelola warung</p>
+      <input type="email"    id="email"    class="login-input" placeholder="📧 Alamat Email">
+      <input type="password" id="password" class="login-input" placeholder="🔒 Kata Sandi">
+      <button id="btnLogin" class="btn-login">Masuk →</button>
+    </div>
+  </div>
+
+  <!-- ==================== APLIKASI UTAMA ==================== -->
+  <div class="app">
+
+    <!-- HEADER (mobile) / SIDEBAR (desktop) -->
+    <header>
+      <div class="brand">
+        <span class="brand-icon">🏪</span>
+        <span class="brand-name">Warung Barokah</span>
+      </div>
+
+      <nav class="main-nav">
+        <button class="nav-btn active" id="menuGudang">
+          <span class="nav-icon">📦</span>
+          <span class="nav-label">Gudang</span>
+        </button>
+        <button class="nav-btn" id="menuBelanja">
+          <span class="nav-icon">🛒</span>
+          <span class="nav-label">Belanja</span>
+        </button>
+      </nav>
+
+      <div class="header-tools">
+        <button id="toggleDark" class="tool-btn dark-toggle" title="Mode Gelap">
+          <span class="tool-icon">🌙</span>
+          <span class="tool-label">Mode Gelap</span>
+        </button>
+        <button id="btnLogout" class="tool-btn logout-btn" title="Keluar">
+          <span class="tool-icon">🚪</span>
+          <span class="tool-label">Keluar</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- KONTEN UTAMA -->
+    <main class="main-wrapper">
+
+      <!-- ===== HALAMAN GUDANG ===== -->
+      <div id="pageGudang" class="page">
+        <div class="page-header">
+          <h2>📦 Gudang Barang</h2>
+        </div>
+        <div class="page-controls">
+          <input type="text" id="search" placeholder="🔍 Cari barang...">
+          <div class="filter-wrapper">
+            <button class="filter-btn active" data-kategori="">Semua</button>
+            <button class="filter-btn" data-kategori="Item lain">Item lain</button>
+            <button class="filter-btn" data-kategori="Minuman">Minuman</button>
+            <button class="filter-btn" data-kategori="Snack">Snack</button>
+            <button class="filter-btn" data-kategori="Rokok">Rokok</button>
+            <button class="filter-btn" data-kategori="Sembako">Sembako</button>
+          </div>
+        </div>
+        <div id="tabelBarang" class="barang-list-container"></div>
+      </div>
+
+      <!-- ===== HALAMAN BELANJA ===== -->
+      <div id="pageBelanja" class="page" style="display:none;">
+        <div class="page-header">
+          <h2>🛒 Belanja Agen</h2>
+        </div>
+        <div class="page-controls">
+          <input type="text" id="searchBelanja" placeholder="🔎 Cari barang...">
+        </div>
+
+        <!-- Layout 2 panel di desktop -->
+        <div class="belanja-layout">
+          <div class="belanja-col-list">
+            <div id="listBelanja"></div>
+          </div>
+          <div class="belanja-col-cart">
+            <div class="cart-panel">
+              <h3 class="section-title">🧺 Keranjang</h3>
+              <div id="keranjangBelanja"></div>
+              <div id="totalBelanja" class="total-belanja"></div>
+              <button id="printBelanja" class="btn-cetak">🧾 Cetak Daftar Belanja</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </main>
+
+    <!-- FAB Tambah Barang -->
+    <button class="fab" id="openModal" title="Tambah Barang">＋</button>
+
+  </div><!-- end .app -->
+
+  <!-- ==================== MODAL FORM BARANG ==================== -->
+  <div id="modal" class="modal">
+    <div class="modal-content">
+      <button class="close-btn" id="closeModal" title="Tutup">✕</button>
+      <h3>📝 Data Barang</h3>
+      <form id="barangForm">
+        <input type="hidden" id="docId">
+
+        <div class="input-group">
+          <label>Nama Barang</label>
+          <input type="text" id="nama" placeholder="Contoh: Indomie Goreng" required>
+        </div>
+
+        <div class="input-group">
+          <label>Harga Modal Agen (Rahasia 🔒)</label>
+          <input type="number" id="hargaAgen" placeholder="Harga beli dari agen" required>
+        </div>
+
+        <div class="input-group">
+          <label>Harga Jual (Tampilan Depan)</label>
+          <input type="text" id="catatanUtama" placeholder="Contoh: 1/4: 5rb | 1kg: 18rb" required>
+        </div>
+
+        <div class="input-group">
+          <label>Rincian Lengkap (muncul saat diklik)</label>
+          <textarea id="catatanHarga" placeholder="Contoh: Modal 16rb, plastik 500..." rows="3"></textarea>
+        </div>
+
+        <!-- Satuan & Kategori berdampingan -->
+        <div class="input-row">
+          <div class="input-group">
+            <label>Satuan Beli</label>
+            <select id="satuanBeli" required>
+              <option value="">Pilih</option>
+              <option>pcs</option>
+              <option>pack</option>
+              <option>rtg</option>
+              <option>dus</option>
+              <option>karton</option>
+              <option>sak/karung</option>
+              <option>Slop</option>
+            </select>
+          </div>
+          <div class="input-group">
+            <label>Kategori</label>
+            <select id="kategori" required>
+              <option value="">Pilih</option>
+              <option>Item lain</option>
+              <option>Minuman</option>
+              <option>Snack</option>
+              <option>Rokok</option>
+              <option>Sembako</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="submit" class="btn-simpan">💾 Simpan Barang</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===== FIREBASE CDN ===== -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
