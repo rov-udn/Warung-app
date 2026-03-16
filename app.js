@@ -19,26 +19,36 @@ const auth = firebase.auth();
 // ============================================================
 document.addEventListener("DOMContentLoaded", () => {
 
-  // ---- LOGIN ----
-  const loginPage = document.getElementById("loginPage");
-  const btnLogin  = document.getElementById("btnLogin");
+  // ---- ELEMEN LOGIN ----
+  const loginPage    = document.getElementById("loginPage");
+  const btnLogin     = document.getElementById("btnLogin");
+  const appContainer = document.querySelector(".app");
 
+  // ---- AUTH STATE ----
   auth.onAuthStateChanged(user => {
-    loginPage.style.display = user ? "none" : "flex";
+    if (user) {
+      loginPage.style.display  = "none";
+      appContainer.style.display = "flex";
+      loadKeranjang();
+    } else {
+      loginPage.style.display  = "flex";
+      appContainer.style.display = "none";
+    }
   });
 
-  btnLogin.addEventListener("click", () => {
+  btnLogin.addEventListener("click", doLogin);
+
+  document.getElementById("password").addEventListener("keydown", e => {
+    if (e.key === "Enter") doLogin();
+  });
+
+  function doLogin() {
     const email = document.getElementById("email").value.trim();
     const pass  = document.getElementById("password").value;
     if (!email || !pass) { alert("Email dan password wajib diisi."); return; }
     auth.signInWithEmailAndPassword(email, pass)
         .catch(err => alert("Gagal login: " + err.message));
-  });
-
-  // Enter key juga bisa login
-  document.getElementById("password").addEventListener("keydown", e => {
-    if (e.key === "Enter") btnLogin.click();
-  });
+  }
 
   document.getElementById("btnLogout").addEventListener("click", () => {
     if (confirm("Yakin ingin keluar?")) auth.signOut();
@@ -47,30 +57,33 @@ document.addEventListener("DOMContentLoaded", () => {
   // ============================================================
   // REFERENSI ELEMEN
   // ============================================================
-  const form          = document.getElementById("barangForm");
-  const tabel         = document.getElementById("tabelBarang");
-  const searchInput   = document.getElementById("search");
-  const searchBelanja = document.getElementById("searchBelanja");
-  const modal         = document.getElementById("modal");
-  const openModalBtn  = document.getElementById("openModal");
-  const closeModalBtn = document.getElementById("closeModal");
-  const toggleBtn     = document.getElementById("toggleDark");
-  const pageGudang    = document.getElementById("pageGudang");
-  const pageBelanja   = document.getElementById("pageBelanja");
-  const listBelanja   = document.getElementById("listBelanja");
-  const keranjangDiv  = document.getElementById("keranjangBelanja");
-  const totalDiv      = document.getElementById("totalBelanja");
-  const menuGudang    = document.getElementById("menuGudang");
-  const menuBelanja   = document.getElementById("menuBelanja");
-  const fabBtn        = document.getElementById("openModal");
+  const form               = document.getElementById("barangForm");
+  const tabel              = document.getElementById("tabelBarang");
+  const searchInput        = document.getElementById("search");
+  const searchBelanja      = document.getElementById("searchBelanja");
+  const modal              = document.getElementById("modal");
+  const openModalBtn       = document.getElementById("openModal");
+  const closeModalBtn      = document.getElementById("closeModal");
+  const toggleBtn          = document.getElementById("toggleDark");
+  const pageGudang         = document.getElementById("pageGudang");
+  const pageBelanja        = document.getElementById("pageBelanja");
+  const listBelanja        = document.getElementById("listBelanja");
+  const keranjangDiv       = document.getElementById("keranjangBelanja");
+  const totalDiv           = document.getElementById("totalBelanja");
+  const menuGudang         = document.getElementById("menuGudang");
+  const menuBelanja        = document.getElementById("menuBelanja");
+  const fabBtn             = document.getElementById("openModal");
+  const btnScrollKeranjang = document.getElementById("btnScrollKeranjang");
+  const clearSearch        = document.getElementById("clearSearch");
+  const clearSearchBelanja = document.getElementById("clearSearchBelanja");
 
   // ============================================================
   // STATE
   // ============================================================
-  let allData         = [];
-  let keranjang       = {};
-  let currentSearch   = "";
-  let searchBelanjaQ  = "";
+  let allData        = [];
+  let keranjang      = {};
+  let currentSearch  = "";
+  let searchBelanjaQ = "";
   let currentKategori = "";
 
   // ============================================================
@@ -79,33 +92,84 @@ document.addEventListener("DOMContentLoaded", () => {
   const rupiah = n =>
     "Rp " + new Intl.NumberFormat("id-ID").format(n || 0);
 
+  function escHtml(str = "") {
+    return String(str)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  function escapeSingleQuote(str = "") {
+    return String(str).replace(/'/g, "\\'");
+  }
+
   // ============================================================
   // DARK MODE
   // ============================================================
   toggleBtn.addEventListener("click", () => {
     const isDark = document.body.classList.toggle("dark");
-    toggleBtn.querySelector(".tool-icon").textContent = isDark ? "☀️" : "🌙";
+    toggleBtn.querySelector(".tool-icon").textContent  = isDark ? "☀️" : "🌙";
     toggleBtn.querySelector(".tool-label").textContent = isDark ? "Mode Terang" : "Mode Gelap";
+  });
+
+  // ============================================================
+  // SEARCH — iOS Clear Button
+  // ============================================================
+  function handleSearchInput(inputEl, wrapperSel, onInput) {
+    const wrapper = inputEl.closest(".search-ios-wrapper");
+    inputEl.addEventListener("input", e => {
+      wrapper.classList.toggle("has-value", e.target.value.length > 0);
+      onInput(e.target.value);
+    });
+  }
+
+  handleSearchInput(searchInput, ".search-ios-wrapper", val => {
+    currentSearch = val;
+    renderTable();
+  });
+
+  handleSearchInput(searchBelanja, ".search-ios-wrapper", val => {
+    searchBelanjaQ = val;
+    renderBelanja();
+  });
+
+  clearSearch.addEventListener("click", () => {
+    searchInput.value = "";
+    searchInput.dispatchEvent(new Event("input"));
+    searchInput.focus();
+  });
+
+  clearSearchBelanja.addEventListener("click", () => {
+    searchBelanja.value = "";
+    searchBelanja.dispatchEvent(new Event("input"));
+    searchBelanja.focus();
   });
 
   // ============================================================
   // NAVIGASI HALAMAN
   // ============================================================
   menuGudang.addEventListener("click", () => {
-    pageGudang.style.display = "";
+    pageGudang.style.display  = "";
     pageBelanja.style.display = "none";
     menuGudang.classList.add("active");
     menuBelanja.classList.remove("active");
     fabBtn.style.display = "flex";
+    btnScrollKeranjang.style.display = "none";
   });
 
   menuBelanja.addEventListener("click", () => {
     pageBelanja.style.display = "";
-    pageGudang.style.display = "none";
+    pageGudang.style.display  = "none";
     menuBelanja.classList.add("active");
     menuGudang.classList.remove("active");
     fabBtn.style.display = "none";
+    btnScrollKeranjang.style.display = "flex";
     renderBelanja();
+  });
+
+  btnScrollKeranjang.addEventListener("click", () => {
+    keranjangDiv.scrollIntoView({ behavior: "smooth" });
   });
 
   // ============================================================
@@ -120,7 +184,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   openModalBtn.addEventListener("click", openModal);
   closeModalBtn.addEventListener("click", closeModal);
-  modal.addEventListener("click", e => { if (e.target === modal) closeModal(); });
+  modal.addEventListener("click", e => {
+    if (e.target === modal) closeModal();
+  });
 
   // ============================================================
   // FILTER KATEGORI
@@ -135,19 +201,6 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // ============================================================
-  // SEARCH
-  // ============================================================
-  searchInput.addEventListener("input", e => {
-    currentSearch = e.target.value;
-    renderTable();
-  });
-
-  searchBelanja.addEventListener("input", e => {
-    searchBelanjaQ = e.target.value;
-    renderBelanja();
-  });
-
-  // ============================================================
   // FIREBASE — REALTIME DATA
   // ============================================================
   db.collection("barang").orderBy("nama").onSnapshot(snapshot => {
@@ -157,7 +210,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // ============================================================
-  // RENDER GUDANG — DAFTAR KARTU
+  // RENDER GUDANG
   // ============================================================
   function renderTable() {
     const kw = currentSearch.toLowerCase();
@@ -269,7 +322,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // RENDER BELANJA
   // ============================================================
   function renderBelanja() {
-    const q = searchBelanjaQ.toLowerCase();
+    const q        = searchBelanjaQ.toLowerCase();
     const filtered = allData.filter(i => i.nama.toLowerCase().includes(q));
 
     listBelanja.innerHTML = filtered.map(i => `
@@ -293,7 +346,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // TAMBAH KE KERANJANG
   // ============================================================
   window.tambahKeKeranjang = (id, nama, harga, satuan) => {
-    const qtyEl = document.getElementById(`qty-${id}`);
+    const qtyEl  = document.getElementById(`qty-${id}`);
     const jumlah = parseInt(qtyEl?.value) || 1;
 
     if (keranjang[nama]) {
@@ -302,10 +355,41 @@ document.addEventListener("DOMContentLoaded", () => {
       keranjang[nama] = { qty: jumlah, harga: Number(harga), satuan };
     }
 
+    saveKeranjang();
     renderKeranjang();
+    updateBadge();
     if (qtyEl) qtyEl.value = 1;
     alert(`✅ ${nama} ×${jumlah} masuk keranjang!`);
   };
+
+  // ============================================================
+  // PERSIST KERANJANG
+  // ============================================================
+  function saveKeranjang() {
+    localStorage.setItem("keranjangWarung", JSON.stringify(keranjang));
+  }
+
+  function loadKeranjang() {
+    const data = localStorage.getItem("keranjangWarung");
+    if (data) {
+      try {
+        keranjang = JSON.parse(data);
+      } catch {
+        keranjang = {};
+      }
+      renderKeranjang();
+      updateBadge();
+    }
+  }
+
+  function updateBadge() {
+    const count = Object.keys(keranjang).length;
+    if (count > 0) {
+      btnScrollKeranjang.setAttribute("data-count", count);
+    } else {
+      btnScrollKeranjang.removeAttribute("data-count");
+    }
+  }
 
   // ============================================================
   // RENDER KERANJANG
@@ -339,7 +423,9 @@ document.addEventListener("DOMContentLoaded", () => {
   keranjangDiv.addEventListener("click", e => {
     if (e.target.classList.contains("hapus-btn")) {
       delete keranjang[e.target.dataset.nama];
+      saveKeranjang();
       renderKeranjang();
+      updateBadge();
     }
   });
 
@@ -373,21 +459,6 @@ document.addEventListener("DOMContentLoaded", () => {
     navigator.clipboard.writeText(text)
       .then(() => alert("Disalin! Buka RawBT lalu Paste."))
       .catch(() => alert("Gagal menyalin. Salin manual:\n\n" + text));
-  }
-
-  // ============================================================
-  // HELPERS — XSS PREVENTION
-  // ============================================================
-  function escHtml(str = "") {
-    return String(str)
-      .replace(/&/g,"&amp;")
-      .replace(/</g,"&lt;")
-      .replace(/>/g,"&gt;")
-      .replace(/"/g,"&quot;");
-  }
-
-  function escapeSingleQuote(str = "") {
-    return String(str).replace(/'/g, "\\'");
   }
 
 }); // end DOMContentLoaded
