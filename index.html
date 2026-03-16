@@ -22,9 +22,9 @@
   </div>
 
   <!-- ==================== APLIKASI UTAMA ==================== -->
-  <div class="app">
+  <div class="app" style="display:none;">
 
-    <!-- HEADER (mobile) / SIDEBAR (desktop) -->
+    <!-- HEADER / SIDEBAR -->
     <header>
       <div class="brand">
         <span class="brand-icon">🏪</span>
@@ -63,7 +63,11 @@
           <h2>📦 Gudang Barang</h2>
         </div>
         <div class="page-controls">
-          <input type="text" id="search" placeholder="🔍 Cari barang...">
+          <div class="search-ios-wrapper">
+            <span class="search-ios-icon">🔍</span>
+            <input type="text" id="search" class="search-ios" placeholder="Cari barang...">
+            <button class="search-ios-clear" id="clearSearch" title="Hapus">✕</button>
+          </div>
           <div class="filter-wrapper">
             <button class="filter-btn active" data-kategori="">Semua</button>
             <button class="filter-btn" data-kategori="Item lain">Item lain</button>
@@ -82,10 +86,13 @@
           <h2>🛒 Belanja Agen</h2>
         </div>
         <div class="page-controls">
-          <input type="text" id="searchBelanja" placeholder="🔎 Cari barang...">
+          <div class="search-ios-wrapper">
+            <span class="search-ios-icon">🔍</span>
+            <input type="text" id="searchBelanja" class="search-ios" placeholder="Cari barang...">
+            <button class="search-ios-clear" id="clearSearchBelanja" title="Hapus">✕</button>
+          </div>
         </div>
 
-        <!-- Layout 2 panel di desktop -->
         <div class="belanja-layout">
           <div class="belanja-col-list">
             <div id="listBelanja"></div>
@@ -105,6 +112,8 @@
 
     <!-- FAB Tambah Barang -->
     <button class="fab" id="openModal" title="Tambah Barang">＋</button>
+    <!-- FAB Ke Keranjang -->
+    <button class="fab-keranjang" id="btnScrollKeranjang" title="Ke Keranjang" style="display:none;">🛒</button>
 
   </div><!-- end .app -->
 
@@ -136,7 +145,6 @@
           <textarea id="catatanHarga" placeholder="Contoh: Modal 16rb, plastik 500..." rows="3"></textarea>
         </div>
 
-        <!-- Satuan & Kategori berdampingan -->
         <div class="input-row">
           <div class="input-group">
             <label>Satuan Beli</label>
@@ -144,8 +152,6 @@
               <option value="">Pilih</option>
               <option>pcs</option>
               <option>pack</option>
-              <option>bal</option>
-              <option>ikat</option>
               <option>rtg</option>
               <option>dus</option>
               <option>karton</option>
@@ -171,7 +177,7 @@
     </div>
   </div>
 
-  <!-- ===== FIREBASE CDN ===== -->
+  <!-- Firebase CDN -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
