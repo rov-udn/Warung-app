@@ -11,15 +11,22 @@
 
   <!-- ==================== LOGIN PAGE ==================== -->
   <div id="loginPage" class="login-overlay">
+    <div class="login-bg-decor">
+      <span></span><span></span><span></span>
+    </div>
     <div class="login-card">
       <div class="login-logo">🏪</div>
       <h2 class="login-title">Warung Barokah</h2>
       <p class="login-subtitle">Masuk untuk mengelola warung</p>
-      <input type="email"    id="email"    class="login-input" placeholder="📧 Alamat Email">
-      <input type="password" id="password" class="login-input" placeholder="🔒 Kata Sandi">
+      <input type="email"    id="email"    class="login-input" placeholder="📧 Alamat Email" autocomplete="email">
+      <input type="password" id="password" class="login-input" placeholder="🔒 Kata Sandi"  autocomplete="current-password">
       <button id="btnLogin" class="btn-login">Masuk →</button>
+      <p id="loginError" class="login-error"></p>
     </div>
   </div>
+
+  <!-- ==================== TOAST CONTAINER ==================== -->
+  <div id="toastContainer" class="toast-container"></div>
 
   <!-- ==================== APLIKASI UTAMA ==================== -->
   <div class="app" style="display:none;">
@@ -39,6 +46,10 @@
         <button class="nav-btn" id="menuBelanja">
           <span class="nav-icon">🛒</span>
           <span class="nav-label">Belanja</span>
+        </button>
+        <button class="nav-btn" id="menuHistory">
+          <span class="nav-icon">📜</span>
+          <span class="nav-label">Riwayat</span>
         </button>
       </nav>
 
@@ -62,13 +73,36 @@
         <div class="page-header">
           <h2>📦 Gudang Barang</h2>
         </div>
+
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+          <div class="stat-item">
+            <span class="stat-value" id="statTotal">0</span>
+            <span class="stat-label">Total Item</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <span class="stat-value" id="statKategori">0</span>
+            <span class="stat-label">Kategori</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat-item">
+            <span class="stat-value" id="statFiltered">0</span>
+            <span class="stat-label">Ditampilkan</span>
+          </div>
+        </div>
+
         <div class="page-controls">
           <div class="search-ios-wrapper">
             <span class="search-ios-icon">🔍</span>
             <input type="text" id="search" class="search-ios" placeholder="Cari barang...">
+            <button onclick="mulaiScan('search')" class="tool-btn scan-btn" title="Scan Barcode">📷</button>
             <button class="search-ios-clear" id="clearSearch" title="Hapus">✕</button>
           </div>
-          <div class="filter-wrapper">
+
+          <!-- FIX: <div id="reader"> dihapus dari sini, sudah ada di #reader-container -->
+
+          <div class="filter-wrapper" id="filterGudang">
             <button class="filter-btn active" data-kategori="">Semua</button>
             <button class="filter-btn" data-kategori="Item lain">Item lain</button>
             <button class="filter-btn" data-kategori="Minuman/Kopi/Susu">Minuman/Kopi/Susu</button>
@@ -78,8 +112,10 @@
             <button class="filter-btn" data-kategori="Mie/Instan">Mie/Instan</button>
             <button class="filter-btn" data-kategori="Sabun/pembersih">Sabun/pembersih</button>
             <button class="filter-btn" data-kategori="Obat-obatan/Medical item">Obat-obatan/Medical item</button>
+            <button class="filter-btn" data-kategori="Plastik/Cup">Plastik/Cup</button>
           </div>
         </div>
+
         <div id="tabelBarang" class="barang-list-container"></div>
       </div>
 
@@ -88,11 +124,28 @@
         <div class="page-header">
           <h2>🛒 Belanja Agen</h2>
         </div>
+
         <div class="page-controls">
           <div class="search-ios-wrapper">
             <span class="search-ios-icon">🔍</span>
             <input type="text" id="searchBelanja" class="search-ios" placeholder="Cari barang...">
+            <button onclick="mulaiScan('searchBelanja')" class="tool-btn scan-btn" title="Scan Barcode">📷</button>
             <button class="search-ios-clear" id="clearSearchBelanja" title="Hapus">✕</button>
+          </div>
+
+          <!-- FIX: <div id="reader"> dihapus dari sini juga (duplikat ID) -->
+
+          <div class="filter-wrapper" id="filterBelanja">
+            <button class="filter-btn active" data-kategori="">Semua</button>
+            <button class="filter-btn" data-kategori="Item lain">Item lain</button>
+            <button class="filter-btn" data-kategori="Minuman/Kopi/Susu">Minuman/Kopi/Susu</button>
+            <button class="filter-btn" data-kategori="Snack/Biskit/Roti">Snack/Biskit/Roti</button>
+            <button class="filter-btn" data-kategori="Rokok/Korek">Rokok/Korek</button>
+            <button class="filter-btn" data-kategori="Sembako/Dapur">Sembako/Dapur</button>
+            <button class="filter-btn" data-kategori="Mie/Instan">Mie/Instan</button>
+            <button class="filter-btn" data-kategori="Sabun/pembersih">Sabun/pembersih</button>
+            <button class="filter-btn" data-kategori="Obat-obatan/Medical item">Obat-obatan/Medical item</button>
+            <button class="filter-btn" data-kategori="Plastik/Cup">Plastik/Cup</button>
           </div>
         </div>
 
@@ -111,11 +164,28 @@
         </div>
       </div>
 
+      <!-- ===== HALAMAN HISTORY ===== -->
+      <div id="pageHistory" class="page" style="display:none;">
+        <div class="page-header">
+          <h2>📜 Riwayat Aktivitas</h2>
+        </div>
+
+        <div class="filter-wrapper" style="margin-bottom:15px;">
+          <button class="filter-btn active" id="tabBelanja">🛒 Belanja</button>
+          <button class="filter-btn" id="tabUpdateData">📦 Update Barang</button>
+        </div>
+
+        <div id="historyContent">
+          <div id="listHistoryBelanja"></div>
+          <div id="listHistoryUpdateData" style="display:none;"></div>
+        </div>
+      </div>
+
     </main>
 
-    <!-- FAB Tambah Barang -->
+    <!-- FAB Tambah Barang (hanya tampil di Gudang) -->
     <button class="fab" id="openModal" title="Tambah Barang">＋</button>
-    <!-- FAB Ke Keranjang -->
+    <!-- FAB Ke Keranjang (hanya tampil di Belanja) -->
     <button class="fab-keranjang" id="btnScrollKeranjang" title="Ke Keranjang" style="display:none;">🛒</button>
 
   </div><!-- end .app -->
@@ -129,13 +199,21 @@
         <input type="hidden" id="docId">
 
         <div class="input-group">
+          <label>Barcode Produk (Opsional 🏷️)</label>
+          <div style="display:flex; gap:8px;">
+            <input type="text" id="barcode" placeholder="Scan atau ketik manual">
+            <button type="button" onclick="mulaiScan('barcode')" class="tool-btn scan-btn">📷</button>
+          </div>
+        </div>
+
+        <div class="input-group">
           <label>Nama Barang</label>
           <input type="text" id="nama" placeholder="Contoh: Indomie Goreng" required>
         </div>
 
         <div class="input-group">
           <label>Harga Modal Agen (Rahasia 🔒)</label>
-          <input type="number" id="hargaAgen" placeholder="Harga beli dari agen" required>
+          <input type="number" id="hargaAgen" placeholder="Harga beli dari agen" required min="0">
         </div>
 
         <div class="input-group">
@@ -146,6 +224,14 @@
         <div class="input-group">
           <label>Rincian Lengkap (muncul saat diklik)</label>
           <textarea id="catatanHarga" placeholder="Contoh: Modal 16rb, plastik 500..." rows="3"></textarea>
+        </div>
+
+        <div class="input-group">
+          <label>Link Foto Produk (URL 🖼️)</label>
+          <input type="text" id="fotoUrl" placeholder="Tempel link foto dari Google di sini...">
+          <small style="font-size:10px; color:var(--text-3); display:block; margin-top:4px;">
+            Tips: Cari di Google → Buka Gambar di Tab Baru → Salin Link-nya.
+          </small>
         </div>
 
         <div class="input-row">
@@ -160,7 +246,9 @@
               <option>karton</option>
               <option>sak/karung</option>
               <option>Slop</option>
-              <option>Kg</option>
+              <option>kg</option>
+              <option>Ikat</option>
+              <option>Bal</option>
             </select>
           </div>
           <div class="input-group">
@@ -175,6 +263,7 @@
               <option>Mie/Instan</option>
               <option>Sabun/pembersih</option>
               <option>Obat-obatan/Medical item</option>
+              <option>Plastik/Cup</option>
             </select>
           </div>
         </div>
@@ -184,10 +273,17 @@
     </div>
   </div>
 
-  <!-- Firebase CDN -->
+  <!-- SCANNER OVERLAY — satu-satunya #reader yang valid -->
+  <div id="reader-container" style="display:none;">
+    <div id="reader"></div>
+    <button onclick="stopScanner()" class="close-scan-btn">✕ Tutup Kamera</button>
+  </div>
+
+  <!-- Firebase SDK -->
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="app.js"></script>
 </body>
 </html>
