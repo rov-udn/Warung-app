@@ -502,7 +502,7 @@ document.addEventListener("DOMContentLoaded", () => {
       catatLog("history_stok", {
         nama      : payload.nama,
         tipe      : docId ? "Update" : "Barang Baru",
-        keterangan: `Harga: ${payload.catatanUtama}`
+        keterangan: `Harga: ${payload.catatanUtama}(${payload.kategori})`
       });
       showToast(`💾 ${payload.nama} berhasil disimpan!`, "success");
       closeModal();
@@ -516,6 +516,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // ============================================================
   function catatLog(collectionName, data) {
     const user        = auth.currentUser;
+    if (!user){console.war("⚠️ Gagal catat story: User tidak login")}
     const labelWarung = user ? user.email.split("@")[0] : "Umum";
 
     db.collection(collectionName).add({
@@ -772,6 +773,8 @@ document.addEventListener("DOMContentLoaded", () => {
     text    += "Tgl: " + new Date().toLocaleDateString("id-ID") + "\n\n";
 
     keys.forEach(n => {
+      const item = keranjang[n];
+      const subtotal = item.qty * item.harga;
       catatLog("history_belanja", {
         nama  : n,
         qty   : keranjang[n].qty,
