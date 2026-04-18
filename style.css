@@ -485,6 +485,61 @@ body.dark .product-card:hover { background:var(--surface-2); }
 .prod-price { font-size:15px; font-weight:800; color:var(--green); }
 .prod-hint  { font-size:10px; color:var(--text-3); margin-top:3px; }
 
+.prod-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 5px;
+}
+
+.price-trend-inline {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 800;
+  flex-shrink: 0;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+
+.trend-up {
+  background: rgba(229,57,53,.12);
+  color: #e53935;
+  border: 1px solid rgba(229,57,53,.25);
+}
+
+.trend-down {
+  background: rgba(67,160,71,.12);
+  color: #2e7d32;
+  border: 1px solid rgba(67,160,71,.25);
+}
+
+.trend-flat {
+  background: rgba(120,120,120,.12);
+  color: #757575;
+  border: 1px solid rgba(120,120,120,.2);
+}
+
+.trend-new {
+  background: rgba(26,115,232,.12);
+  color: #1a73e8;
+  border: 1px solid rgba(26,115,232,.25);
+}
+
+.trend-delete {
+  background: rgba(121,85,72,.12);
+  color: #795548;
+  border: 1px solid rgba(121,85,72,.25);
+}
+
+.price-detail-box {
+  margin-top: 10px;
+}
+
+
 /* ============================================================
    FOTO PRODUK
 ============================================================ */
@@ -831,6 +886,102 @@ body.dark .belanja-harga { color:#64b5f6; }
 .tag-hapus   { background:var(--red); color:#fff; }
 
 .history-date { text-align:right; font-size:11px; color:var(--text-3); font-weight:600; white-space:nowrap; flex-shrink:0; }
+
+.history-card-update {
+  align-items: flex-start;
+}
+
+.history-info-update {
+  flex: 1;
+}
+
+.history-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.history-item-type {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text-3);
+  background: var(--surface-2);
+  padding: 4px 8px;
+  border-radius: 8px;
+}
+
+.history-title-row {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  font-size: 15px;
+  margin-bottom: 6px;
+}
+
+.history-title-trend {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.history-price-box {
+  margin-top: 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.history-price-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.price-old {
+  color: var(--text-3);
+  text-decoration: line-through;
+}
+
+.price-new {
+  color: var(--brown);
+  font-weight: 800;
+}
+
+body.dark .price-new {
+  color: var(--amber);
+}
+
+.price-arrow {
+  color: var(--text-3);
+  font-weight: 800;
+}
+
+.history-trend {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 999px;
+}
+
+.trend-icon {
+  font-size: 12px;
+  line-height: 1;
+}
 
 /* ============================================================
    CART PANEL — GLASSMORPHISM

@@ -26,16 +26,44 @@ document.addEventListener("DOMContentLoaded", () => {
   const appContainer = document.querySelector(".app");
 
   // ── AUTH STATE ────────────────────────────────────────────
-  auth.onAuthStateChanged(user => {
-    if (user) {
-      loginPage.style.display    = "none";
-      appContainer.style.display = "flex";
-      loadKeranjang();
-    } else {
-      loginPage.style.display    = "flex";
-      appContainer.style.display = "none";
-    }
+ auth.onAuthStateChanged(user => {
+  if (user) {
+    loginPage.style.display = "none";
+    appContainer.style.display = "flex";
+    loadKeranjang();
+    subscribeBarang();
+    subscribePriceTrend();
+  } else {
+    loginPage.style.display = "flex";
+    appContainer.style.display = "none";
+  }
+});
+
+function subscribeBarang() {
+  db.collection("barang").orderBy("nama").onSnapshot(snapshot => {
+    allData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    renderTable();
+    updateStats();
+    if (pageBelanja.style.display !== "none") renderBelanja();
   });
+}
+
+function subscribePriceTrend() {
+  db.collection("history_stok")
+    .orderBy("waktu", "desc")
+    .limit(200)
+    .onSnapshot(snapshot => {
+      const map = {};
+      snapshot.docs.forEach(doc => {
+        const item = doc.data();
+        if (!map[item.barangId] && item.priceTrend && item.barangId) {
+          map[item.barangId] = item.priceTrend;
+        }
+      });
+      latestPriceTrendMap = map;
+      renderTable();
+    });
+}
 
   btnLogin.addEventListener("click", doLogin);
   document.getElementById("password").addEventListener("keydown", e => {
@@ -105,12 +133,16 @@ document.addEventListener("DOMContentLoaded", () => {
   // ============================================================
   // STATE
   // ============================================================
-  let allData         = [];
-  let keranjang       = {};
-  let currentSearch   = "";
-  let searchBelanjaQ  = "";
-  let currentKategori = "";
-  let historyCleanedOnce = false; // FIX: hindari pemanggilan berulang
+  let allData = [];
+let keranjang = {};
+let currentSearch = "";
+let searchBelanjaQ = "";
+let currentKategori = "";
+let historyCleanedOnce = false;
+let html5QrCode = null;
+let latestPriceTrendMap = {};
+let historyListenersAttached = false;
+
 
   // ============================================================
   // UTILITAS
@@ -129,6 +161,50 @@ document.addEventListener("DOMContentLoaded", () => {
   function escapeSingleQuote(str = "") {
     return String(str).replace(/'/g, "\\'");
   }
+
+  function toLowerSafe(str = "") {
+  return String(str).toLowerCase();
+}
+
+function getKategoriBadgeLabel(kategori = "") {
+  if (!kategori) return "Item lain";
+  if (kategori.includes("Minuman")) return "Minuman";
+  if (kategori.includes("Snack")) return "Snack";
+  if (kategori.includes("Rokok")) return "Rokok";
+  if (kategori.includes("Sembako")) return "Sembako";
+  return kategori;
+}
+
+function getPriceTrend(oldPrice, newPrice) {
+  const oldVal = Number(oldPrice) || 0;
+  const newVal = Number(newPrice) || 0;
+
+  if (!oldVal || !newVal || oldVal === newVal) {
+    return {
+      status: "tetap",
+      icon: "•",
+      className: "trend-flat",
+      text: "Harga tetap"
+    };
+  }
+
+  if (newVal > oldVal) {
+    return {
+      status: "naik",
+      icon: "▲",
+      className: "trend-up",
+      text: `Naik ${rupiah(newVal - oldVal)}`
+    };
+  }
+
+  return {
+    status: "turun",
+    icon: "▼",
+    className: "trend-down",
+    text: `Turun ${rupiah(oldVal - newVal)}`
+  };
+}
+
 
   // ============================================================
   // TOAST NOTIFICATION
@@ -303,67 +379,83 @@ document.addEventListener("DOMContentLoaded", () => {
   // RENDER GUDANG
   // ============================================================
   function renderTable() {
-    const kw = currentSearch.toLowerCase();
-    const filtered = allData.filter(i => {
-      const matchSearch  = i.nama.toLowerCase().includes(kw);
-      const matchBarcode = i.barcode && i.barcode.includes(kw);
-      const matchKat     = !currentKategori || i.kategori === currentKategori;
-      return (matchSearch || matchBarcode) && matchKat;
-    });
+  const keyword = toLowerSafe(currentSearch);
+  const filtered = allData.filter(item => {
+    const matchSearch = toLowerSafe(item.nama).includes(keyword);
+    const matchBarcode = String(item.barcode || "").includes(keyword);
+    const matchKategori = !currentKategori || item.kategori === currentKategori;
+    return (matchSearch || matchBarcode) && matchKategori;
+  });
 
-    const filteredEl = document.getElementById("statFiltered");
-    if (filteredEl) filteredEl.textContent = filtered.length;
+  const filteredEl = document.getElementById("statFiltered");
+  if (filteredEl) filteredEl.textContent = filtered.length;
 
-    if (!filtered.length) {
-      tabel.innerHTML = `
-        <div class="empty-state">
-          <span class="empty-state-icon">😕</span>
-          Barang tidak ditemukan.
-        </div>`;
-      return;
-    }
-
-    tabel.innerHTML = filtered.map((i, idx) => {
-      const imgHtml = i.fotoUrl
-        ? `<div class="prod-img-wrapper">
-             <img src="${i.fotoUrl}" class="prod-img" loading="lazy"
-               onerror="this.parentElement.innerHTML='📦'">
-           </div>`
-        : `<div class="prod-img-wrapper">📦</div>`;
-
-      return `
-        <div class="product-card"
-             style="animation-delay:${idx * 0.03}s"
-             onclick="toggleDetail(this)">
-
-          <div class="card-main">
-            ${imgHtml}
-            <div class="card-left">
-              <div class="prod-name">${escHtml(i.nama)}</div>
-              <span class="badge" data-cat="${escHtml(i.kategori || '')}">${escHtml(i.kategori || 'Lainnya')}</span>
-            </div>
-            <div class="card-right">
-              <div class="prod-price">${escHtml(i.catatanUtama || 'Cek Detail')}</div>
-              <div class="prod-hint">Klik untuk detail ▾</div>
-            </div>
-          </div>
-
-          <div class="card-detail">
-            <hr class="detail-divider">
-            <div class="detail-content">
-              <div class="detail-label">Rincian Harga</div>
-              <div class="detail-text">${escHtml(i.catatanHarga || '–')}</div>
-            </div>
-            <div class="card-actions">
-              <button class="edit-btn"   onclick="handleEdit('${i.id}',event)">✏️ Edit</button>
-              <button class="copy-btn"   onclick="handleCopy('${i.id}',event)">📋 Salin</button>
-              <button class="delete-btn" onclick="handleDelete('${i.id}',event)">🗑️ Hapus</button>
-            </div>
-          </div>
-
-        </div>`;
-    }).join("");
+  if (!filtered.length) {
+    tabel.innerHTML = `
+      <div class="empty-state">
+        <span class="empty-state-icon">😕</span>
+        Barang tidak ditemukan.
+      </div>`;
+    return;
   }
+
+  tabel.innerHTML = filtered.map((item, index) => {
+    const imgHtml = item.fotoUrl
+      ? `<div class="prod-img-wrapper">
+           <img src="${item.fotoUrl}" class="prod-img" loading="lazy"
+             onerror="this.parentElement.innerHTML='📦'">
+         </div>`
+      : `<div class="prod-img-wrapper">📦</div>`;
+
+    const trend = latestPriceTrendMap[item.id];
+    const trendHtml = trend && trend.status !== "tetap"
+      ? `<span class="price-trend-inline ${trend.className}" title="${escHtml(trend.text)}">${trend.icon}</span>`
+      : "";
+
+    return `
+      <div class="product-card"
+           style="animation-delay:${index * 0.03}s"
+           onclick="toggleDetail(this)">
+
+        <div class="card-main">
+          ${imgHtml}
+          <div class="card-left">
+            <div class="prod-name-row">
+              <div class="prod-name">${escHtml(item.nama)}</div>
+              ${trendHtml}
+            </div>
+            <span class="badge" data-cat="${escHtml(getKategoriBadgeLabel(item.kategori || ''))}">
+              ${escHtml(item.kategori || 'Lainnya')}
+            </span>
+          </div>
+          <div class="card-right">
+            <div class="prod-price">${escHtml(item.catatanUtama || 'Cek Detail')}</div>
+            <div class="prod-hint">Klik untuk detail ▾</div>
+          </div>
+        </div>
+
+        <div class="card-detail">
+          <hr class="detail-divider">
+          <div class="detail-content">
+            <div class="detail-label">Rincian Harga</div>
+            <div class="detail-text">${escHtml(item.catatanHarga || '–')}</div>
+          </div>
+
+          <div class="detail-content price-detail-box">
+            <div class="detail-label">Harga Agen</div>
+            <div class="detail-text">${rupiah(item.hargaAgen)} / ${escHtml(item.satuanBeli || 'pcs')}</div>
+          </div>
+
+          <div class="card-actions">
+            <button class="edit-btn" onclick="handleEdit('${item.id}',event)">✏️ Edit</button>
+            <button class="copy-btn" onclick="handleCopy('${item.id}',event)">📋 Salin</button>
+            <button class="delete-btn" onclick="handleDelete('${item.id}',event)">🗑️ Hapus</button>
+          </div>
+        </div>
+      </div>`;
+  }).join("");
+}
+
 
   // ============================================================
   // TOGGLE DETAIL KARTU
@@ -478,53 +570,86 @@ document.addEventListener("DOMContentLoaded", () => {
   // ============================================================
   // SIMPAN / UPDATE FORM BARANG
   // ============================================================
-  form.addEventListener("submit", e => {
-    e.preventDefault();
+ form.addEventListener("submit", async e => {
+  e.preventDefault();
 
-    const payload = {
-      nama        : document.getElementById("nama").value.trim(),
-      fotoUrl     : document.getElementById("fotoUrl").value.trim(),
-      barcode     : document.getElementById("barcode").value.trim(),
-      catatanUtama: document.getElementById("catatanUtama").value.trim(),
-      catatanHarga: document.getElementById("catatanHarga").value.trim(),
-      hargaAgen   : Number(document.getElementById("hargaAgen").value),
-      satuanBeli  : document.getElementById("satuanBeli").value,
-      kategori    : document.getElementById("kategori").value,
-      stok        : 0
-    };
+  const payload = {
+    nama: document.getElementById("nama").value.trim(),
+    fotoUrl: document.getElementById("fotoUrl").value.trim(),
+    barcode: document.getElementById("barcode").value.trim(),
+    catatanUtama: document.getElementById("catatanUtama").value.trim(),
+    catatanHarga: document.getElementById("catatanHarga").value.trim(),
+    hargaAgen: Number(document.getElementById("hargaAgen").value),
+    satuanBeli: document.getElementById("satuanBeli").value,
+    kategori: document.getElementById("kategori").value,
+    stok: 0,
+    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
 
-    const docId = document.getElementById("docId").value;
-    const op    = docId
-      ? db.collection("barang").doc(docId).update(payload)
-      : db.collection("barang").add(payload);
+  const docId = document.getElementById("docId").value;
+  const existing = docId ? allData.find(item => item.id === docId) : null;
+  const oldPrice = Number(existing?.hargaAgen || 0);
+  const newPrice = Number(payload.hargaAgen || 0);
+  const trend = getPriceTrend(oldPrice, newPrice);
 
-    op.then(() => {
-      catatLog("history_stok", {
-        nama      : payload.nama,
-        tipe      : docId ? "Update" : "Barang Baru",
-        keterangan: `Harga: ${payload.catatanUtama}(${payload.kategori})`
+  try {
+    let barangId = docId;
+
+    if (docId) {
+      await db.collection("barang").doc(docId).update(payload);
+    } else {
+      const ref = await db.collection("barang").add({
+        ...payload,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
       });
-      showToast(`💾 ${payload.nama} berhasil disimpan!`, "success");
-      closeModal();
-    })
-    .catch(err => showToast("Gagal simpan: " + err.message, "error"));
-  });
+      barangId = ref.id;
+    }
+
+    await catatLog("history_stok", {
+      barangId,
+      nama: payload.nama,
+      tipe: docId ? "Update" : "Barang Baru",
+      keterangan: docId
+        ? `${rupiah(oldPrice)} → ${rupiah(newPrice)} • ${payload.catatanUtama}`
+        : `Harga awal ${rupiah(newPrice)} • ${payload.kategori}`,
+      kategori: payload.kategori,
+      hargaLama: oldPrice,
+      hargaBaru: newPrice,
+      priceTrend: docId
+        ? trend
+        : {
+            status: "baru",
+            icon: "✦",
+            className: "trend-new",
+            text: "Barang baru"
+          }
+    });
+
+    showToast(`💾 ${payload.nama} berhasil disimpan!`, "success");
+    closeModal();
+  } catch (err) {
+    showToast("Gagal simpan: " + err.message, "error");
+  }
+});
+
 
   // ============================================================
   // CATAT LOG
   // FIX: pakai auth.currentUser (konsisten), bukan firebase.auth().currentUser
   // ============================================================
-  function catatLog(collectionName, data) {
-    const user        = auth.currentUser;
-    if (!user){console.war("⚠️ Gagal catat story: User tidak login")}
-    const labelWarung = user ? user.email.split("@")[0] : "Umum";
+ function catatLog(collectionName, data) {
+  const user = auth.currentUser;
+  const labelWarung = user ? user.email.split("@")[0] : "Umum";
 
-    db.collection(collectionName).add({
-      ...data,
-      warung: labelWarung,
-      waktu : firebase.firestore.FieldValue.serverTimestamp()
-    }).catch(err => console.warn("catatLog error:", err.message));
-  }
+  return db.collection(collectionName).add({
+    ...data,
+    warung: labelWarung,
+    waktu: firebase.firestore.FieldValue.serverTimestamp()
+  }).catch(err => {
+    console.warn("catatLog error:", err.message);
+    throw err;
+  });
+}
 
   // ============================================================
   // HAPUS DATA LAMA (> 2 minggu)
@@ -550,75 +675,114 @@ document.addEventListener("DOMContentLoaded", () => {
   // LOAD HISTORY
   // ============================================================
   function loadHistory() {
-    hapusDataLama(); // Aman karena sudah ada flag
+  hapusDataLama().catch(err => console.warn("Cleanup history gagal:", err.message));
 
-    // Stream History Belanja
-    db.collection("history_belanja")
-      .orderBy("waktu", "desc")
-      .limit(30)
-      .onSnapshot(snap => {
-        if (!snap.docs.length) {
-          listHBelanja.innerHTML = `
-            <div class="empty-state">
-              <span class="empty-state-icon">🛒</span>
-              Belum ada riwayat belanja.
-            </div>`;
-          return;
-        }
+  if (historyListenersAttached) return;
+  historyListenersAttached = true;
 
-        listHBelanja.innerHTML = snap.docs.map(doc => {
-          const d           = doc.data();
-          const waktuTampil = d.waktu
-            ? d.waktu.toDate().toLocaleTimeString("id-ID", { hour: "2-digit", minute: "2-digit" })
-            : "Baru saja...";
+  db.collection("history_belanja")
+    .orderBy("waktu", "desc")
+    .limit(30)
+    .onSnapshot(snapshot => {
+      if (!snapshot.docs.length) {
+        listHBelanja.innerHTML = `
+          <div class="empty-state">
+            <span class="empty-state-icon">🛒</span>
+            Belum ada riwayat belanja.
+          </div>`;
+        return;
+      }
 
-          return `
-            <div class="history-card">
-              <div class="history-info">
-                <span class="history-tag tag-belanja">${escHtml(d.warung || "Warung")}</span>
-                <strong>${escHtml(d.nama)}</strong>
-                <small>${d.qty} ${escHtml(d.satuan || "")} • Total: ${rupiah(d.total)}</small>
+      listHBelanja.innerHTML = snapshot.docs.map(doc => {
+        const data = doc.data();
+        const waktuTampil = data.waktu
+          ? data.waktu.toDate().toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })
+          : "Baru saja";
+
+        return `
+          <div class="history-card">
+            <div class="history-info">
+              <span class="history-tag tag-belanja">${escHtml(data.warung || "Warung")}</span>
+              <strong>${escHtml(data.nama)}</strong>
+              <small>${data.qty} ${escHtml(data.satuan || "")} • Total: ${rupiah(data.total)}</small>
+            </div>
+            <div class="history-date">${waktuTampil}</div>
+          </div>`;
+      }).join("");
+    });
+
+  db.collection("history_stok")
+    .orderBy("waktu", "desc")
+    .limit(30)
+    .onSnapshot(snapshot => {
+      if (!snapshot.docs.length) {
+        listHUpdateData.innerHTML = `
+          <div class="empty-state">
+            <span class="empty-state-icon">📦</span>
+            Belum ada riwayat update barang.
+          </div>`;
+        return;
+      }
+
+      listHUpdateData.innerHTML = snapshot.docs.map(doc => {
+        const data = doc.data();
+
+        const tagClass = data.tipe === "Barang Baru"
+          ? "tag-baru"
+          : data.tipe === "Hapus"
+            ? "tag-hapus"
+            : "tag-update";
+
+        const tanggal = data.waktu
+          ? data.waktu.toDate().toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" })
+          : "Baru saja";
+
+        const trend = data.priceTrend || {
+          status: "tetap",
+          icon: "•",
+          className: "trend-flat",
+          text: "Harga tetap"
+        };
+
+        const priceBlock = data.tipe === "Update"
+          ? `
+            <div class="history-price-box">
+              <div class="history-price-row">
+                <span class="price-old">${rupiah(data.hargaLama)}</span>
+                <span class="price-arrow">→</span>
+                <span class="price-new">${rupiah(data.hargaBaru)}</span>
               </div>
-              <div class="history-date">${waktuTampil}</div>
-            </div>`;
-        }).join("");
-      });
-
-    // Stream History Update Stok
-    db.collection("history_stok")
-      .orderBy("waktu", "desc")
-      .limit(30)
-      .onSnapshot(snap => {
-        if (!snap.docs.length) {
-          listHUpdateData.innerHTML = `
-            <div class="empty-state">
-              <span class="empty-state-icon">📦</span>
-              Belum ada riwayat update barang.
-            </div>`;
-          return;
-        }
-
-        listHUpdateData.innerHTML = snap.docs.map(doc => {
-          const d        = doc.data();
-          const tagClass = d.tipe === "Barang Baru" ? "tag-baru"
-                         : d.tipe === "Hapus"       ? "tag-hapus"
-                         : "tag-update";
-          const tanggal  = d.waktu
-            ? d.waktu.toDate().toLocaleDateString("id-ID")
-            : "Baru saja";
-
-          return `
-            <div class="history-card">
-              <div class="history-info">
-                <span class="history-tag ${tagClass}">${escHtml(d.warung || "Admin")}</span>
-                <strong>${escHtml(d.tipe)}: ${escHtml(d.nama)}</strong>
-                <small>${escHtml(d.keterangan || "")}</small>
+              <div class="history-trend ${trend.className}">
+                <span class="trend-icon">${trend.icon}</span>
+                <span>${escHtml(trend.text)}</span>
               </div>
-              <div class="history-date">${tanggal}</div>
-            </div>`;
-        }).join("");
-      });
-  }
+            </div>`
+          : data.tipe === "Barang Baru"
+            ? `<div class="history-trend trend-new"><span class="trend-icon">✦</span><span>Harga awal ${rupiah(data.hargaBaru)}</span></div>`
+            : `<div class="history-trend trend-delete"><span class="trend-icon">🗑️</span><span>Data dihapus</span></div>`;
+
+        return `
+          <div class="history-card history-card-update">
+            <div class="history-info history-info-update">
+              <div class="history-top-row">
+                <span class="history-tag ${tagClass}">${escHtml(data.warung || "Admin")}</span>
+                <span class="history-item-type">${escHtml(data.tipe)}</span>
+              </div>
+
+              <strong class="history-title-row">
+                <span>${escHtml(data.nama)}</span>
+                ${data.tipe === "Update" ? `<span class="history-title-trend ${trend.className}">${trend.icon}</span>` : ""}
+              </strong>
+
+              <small>${escHtml(data.keterangan || "")}</small>
+              ${priceBlock}
+            </div>
+
+            <div class="history-date">${tanggal}</div>
+          </div>`;
+      }).join("");
+    });
+}
 
   // ============================================================
   // RENDER BELANJA
@@ -656,10 +820,10 @@ document.addEventListener("DOMContentLoaded", () => {
           </div>
           <div class="belanja-action">
             <input class="qty-input" type="number" id="qty-${i.id}" value="1" min="1">
-            <button class="tambah-btn"
-              onclick="tambahKeKeranjang('${i.id}','${escapeSingleQuote(i.nama)}',${i.hargaAgen},'${escapeSingleQuote(i.satuanBeli)}')">
-              ➕
-            </button>
+           <button class="tambah-btn"
+              onclick="tambahKeKeranjang('${i.id}','${escapeSingleQuote(i.nama)}',${i.hargaAgen},'${escapeSingleQuote(i.satuanBeli || 'pcs')}','${escapeSingleQuote(i.kategori || 'Lain-lain')}')">
+                ➕
+          </button>
           </div>
         </div>`;
     }).join("");
@@ -668,23 +832,29 @@ document.addEventListener("DOMContentLoaded", () => {
   // ============================================================
   // TAMBAH KE KERANJANG
   // ============================================================
-  window.tambahKeKeranjang = (id, nama, harga, satuan) => {
-    const qtyEl  = document.getElementById(`qty-${id}`);
-    const jumlah = parseInt(qtyEl?.value) || 1;
+  window.tambahKeKeranjang = (id, nama, harga, satuan, kategori) => {
+  const qtyEl = document.getElementById(`qty-${id}`);
+  const jumlah = parseInt(qtyEl?.value, 10) || 1;
 
-    if (keranjang[nama]) {
-      keranjang[nama].qty += jumlah;
-    } else {
-      keranjang[nama] = { qty: jumlah, harga: Number(harga), satuan };
-    }
+  if (keranjang[nama]) {
+    keranjang[nama].qty += jumlah;
+  } else {
+    keranjang[nama] = {
+      id,
+      qty: jumlah,
+      harga: Number(harga),
+      satuan,
+      kategori: kategori || "Lain-lain"
+    };
+  }
 
-    saveKeranjang();
-    renderKeranjang();
-    updateBadge();
-    if (qtyEl) qtyEl.value = 1;
+  saveKeranjang();
+  renderKeranjang();
+  updateBadge();
 
-    showToast(`${nama} ×${jumlah} masuk keranjang!`, "success");
-  };
+  if (qtyEl) qtyEl.value = 1;
+  showToast(`${nama} ×${jumlah} masuk keranjang!`, "success");
+};
 
   // ============================================================
   // PERSIST KERANJANG (localStorage)
@@ -762,61 +932,63 @@ document.addEventListener("DOMContentLoaded", () => {
   // ============================================================
   // CETAK / BAGIKAN DAFTAR BELANJA
   // ============================================================
-  document.getElementById("printBelanja").addEventListener("click", () => {
-    const keys = Object.keys(keranjang);
-    if (!keys.length) {
-      showToast("Keranjang masih kosong!", "warning");
-      return;
-    }
+  document.getElementById("printBelanja").addEventListener("click", async () => {
+  const keys = Object.keys(keranjang);
+  if (!keys.length) {
+    showToast("Keranjang masih kosong!", "warning");
+    return;
+  }
 
-    // --- PROSES PENGELOMPOKAN KATEGORI ---
-    const grupKategori = {};
+  const grupKategori = {};
 
-  keys.forEach(n => {
-    const item = keranjang[n];
-    const kat = item.kategori || "Lain-lain"; // Ambil kategori barang
-    
-    if (!grupKategori[kat]) {
-      grupKategori[kat] = [];
-    }
-    grupKategori[kat].push({ nama: n, ...item });
+  keys.forEach(nama => {
+    const item = keranjang[nama];
+    const kategori = item.kategori || "Lain-lain";
+
+    if (!grupKategori[kategori]) grupKategori[kategori] = [];
+    grupKategori[kategori].push({ nama, ...item });
   });
 
-  catatLog("history_belanja", {
-        nama  : n,
-        qty   : keranjang[n].qty,
-        satuan: keranjang[n].satuan,
-        total : keranjang[n].qty * keranjang[n].harga
-  });
+  try {
+    await Promise.all(keys.map(nama => {
+      const item = keranjang[nama];
+      return catatLog("history_belanja", {
+        nama,
+        qty: item.qty,
+        satuan: item.satuan,
+        total: item.qty * item.harga,
+        kategori: item.kategori || "Lain-lain"
+      });
+    }));
+  } catch (err) {
+    showToast("Sebagian riwayat gagal disimpan: " + err.message, "warning");
+  }
 
-    let text = "=== DAFTAR BELANJA ===\n";
-    text    += "Tgl: " + new Date().toLocaleDateString("id-ID") + "\n\n";
+  let text = "=== DAFTAR BELANJA ===\n";
+  text += "Tgl: " + new Date().toLocaleDateString("id-ID") + "\n\n";
 
-    for (const kategori in grupKategori) {
-    text += `---${kategori.toUpperCase()}---\n`; // Cetak Judul Kategori
-      text += `${n.toUpperCase()}\n`;
-      text += `  x ${keranjang[n].qty} ${keranjang[n].satuan}\n\n`;
-
-      grupKategori[kategori].forEach(item => {
+  Object.keys(grupKategori).forEach(kategori => {
+    text += `--- ${kategori.toUpperCase()} ---\n`;
+    grupKategori[kategori].forEach(item => {
       text += `${item.nama.toUpperCase()}\n`;
       text += `  x ${item.qty} ${item.satuan}\n\n`;
     });
-  }
-
-    text += "----------------------\n";
-    text += "  ( Warung Barokah )  \n\n";
-
-    if (navigator.share) {
-      navigator.share({ title: "Daftar Belanja", text })
-        .then(() => {
-          //bersihkanKeranjang();
-          showToast("Daftar berhasil dibagikan!", "success");
-        })
-        .catch(() => copyFallback(text));
-    } else {
-      copyFallback(text);
-    }
   });
+
+  text += "----------------------\n";
+  text += "  ( Warung Barokah )  \n\n";
+
+  if (navigator.share) {
+    navigator.share({ title: "Daftar Belanja", text })
+      .then(() => {
+        showToast("Daftar berhasil dibagikan!", "success");
+        bersihkanKeranjang();
+      })
+      .catch(() => copyFallback(text));
+  } else {
+    copyFallback(text);
+  }
+});
 
   function copyFallback(text) {
     navigator.clipboard.writeText(text)
