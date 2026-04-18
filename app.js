@@ -83,7 +83,8 @@ function subscribePriceTrend() {
     btnLogin.textContent = "Memuat...";
     btnLogin.classList.add("loading");
 
-    auth.signInWithEmailAndPassword(email, pass)
+    import {signInWithEmailAndPassword} from
+    signInWithEmailAndPassword(email, pass)
       .catch(err => {
         const msg =
           err.code === "auth/wrong-password"  ? "Password salah." :
