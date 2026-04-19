@@ -83,8 +83,10 @@ function subscribePriceTrend() {
     btnLogin.textContent = "Memuat...";
     btnLogin.classList.add("loading");
 
-    import {signInWithEmailAndPassword} from
-    signInWithEmailAndPassword(email, pass)
+    auth.signInWithEmailAndPassword(email, pass)
+      .then(() =>{
+        showToast("login Berhasil", "success")
+      })
       .catch(err => {
         const msg =
           err.code === "auth/wrong-password"  ? "Password salah." :
@@ -529,7 +531,6 @@ function getPriceTrend(oldPrice, newPrice) {
   // ============================================================
   // SCANNER BARCODE
   // ============================================================
-  let html5QrCode;
 
   window.mulaiScan = targetInputId => {
     const container = document.getElementById("reader-container");
