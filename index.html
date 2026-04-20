@@ -51,6 +51,10 @@
           <span class="nav-icon">📜</span>
           <span class="nav-label">Riwayat</span>
         </button>
+        <button class="nav-btn" id="menuKasir">
+          <span class="nav-icon">💰</span>
+          <span class="nav-label">Kasir</span>
+        </button>
       </nav>
 
       <div class="header-tools">
@@ -188,6 +192,25 @@
     <!-- FAB Ke Keranjang (hanya tampil di Belanja) -->
     <button class="fab-keranjang" id="btnScrollKeranjang" title="Ke Keranjang" style="display:none;">🛒</button>
 
+    <!-- ==== HALAMAN KASIR ==== -->
+      <div id="pageKasir" class="page" style="display:none;">
+        <div class="page-header">
+          <h2>Kasir Penjualan 💰</h2>
+        </div>
+  
+        <div class="belanja-layout">
+          <div id="daftarBarangKasir" class="barang-list-container"></div>
+    
+        <div class="cart-panel">
+          <h3>🛒 Keranjang</h3>
+          <div id="listKeranjangKasir"></div>
+          <hr>
+          <h2 id="totalKasir">Total: Rp 0</h2>
+          <button class="btn-simpan" onclick="prosesTransaksi()">Selesaikan</button>
+        </div>
+        </div>
+      </div>
+
   </div><!-- end .app -->
 
   <!-- ==================== MODAL FORM BARANG ==================== -->
@@ -216,6 +239,15 @@
           <input type="number" id="hargaAgen" placeholder="Harga beli dari agen" required min="0">
         </div>
 
+        <div class="input-group">
+          <label>Harga Jual Eceran (Rahasia 🔒)</label>
+          <input type="number" id="HargaJualEceran" placeholder="Harga jual eceran" required min="0">
+        </div>
+        <div class="input-group">
+          <label>Isi Per Satuan Besar (Rahasia 🔒)</label>
+          <input type="number" id="isiSatuan" placeholder="Isi Satuan Contoh: isi 10 atau isi 12" required min="0">
+        </div>
+        
         <div class="input-group">
           <label>Harga Jual (Tampilan Depan)</label>
           <input type="text" id="catatanUtama" placeholder="Contoh: 1/4: 5rb | 1kg: 18rb" required>
@@ -284,6 +316,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
   <script src="https://unpkg.com/html5-qrcode"></script>
-  <script src="app.js"></script>
+  <script src="app.js" defer></script>
 </body>
 </html>
