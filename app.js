@@ -226,9 +226,9 @@ document.addEventListener("DOMContentLoaded", () => {
       .catch((err) => {
         const msg =
           err.code === "auth/wrong-password" ? "Password salah." :
-          err.code === "auth/user-not-found" ? "Email tidak terdaftar." :
-          err.code === "auth/invalid-credential" ? "Email / password salah." :
-          err.message;
+            err.code === "auth/user-not-found" ? "Email tidak terdaftar." :
+              err.code === "auth/invalid-credential" ? "Email / password salah." :
+                err.message;
 
         loginError.textContent = "❌ " + msg;
       })
@@ -241,50 +241,80 @@ document.addEventListener("DOMContentLoaded", () => {
   document.getElementById("btnLogout").addEventListener("click", () => {
     if (confirm("Yakin ingin keluar?")) {
       auth.signOut().then(() => {
-        window.location.reload();  
+        window.location.reload();
       }).catch((error) => {
         console.error("Gagal Logout:", error);
       });
     }
   });
 
-  function startRealtimeListeners() {
-    if (!unsubscribers.barang) {
-      unsubscribers.barang = db.collection("barang")
-        .orderBy("nama")
-        .onSnapshot((snapshot) => {
-          allData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-          updateStats();
+  // 1. Tambahkan variabel timer di luar (global)
+  let renderTimer;
+  let isLoading = true;
 
-          if (activePage === "gudang") renderTable();
-          if (activePage === "belanja") renderBelanja();
-          if (activePage === "kasir") renderKasir();
-        }, (err) => {
-          console.error("Listener barang error:", err);
-          showToast("Gagal memuat data barang.", "error");
-        });
+  // 2. Buat fungsi pembantu untuk menunda render
+  function requestRender() {
+    clearTimeout(renderTimer); // Batalkan antrean render sebelumnya
+    renderTimer = setTimeout(() => {
+      console.log("Melakukan render tunggal untuk semua perubahan data...");
+      if (activePage === "gudang") renderTable();
+      if (activePage === "belanja") renderBelanja();
+      if (activePage === "kasir") renderKasir();
+    }, 100); // Tunggu 100 milidetik (tidak terasa oleh manusia tapi cukup buat komputer)
+  }
+
+  function startRealtimeListeners() {
+    isLoading = true;
+    if (!unsubscribers.barang) {
+      try {
+        unsubscribers.barang = db.collection("barang")
+          .orderBy("nama")
+          .onSnapshot((snapshot) => {
+            allData = snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+            if (!snapshot.metadata.hasPendingWrites) {
+              console.log("Data sinkron dengan server, menjalankan render...");
+              updateStats();
+            }
+
+            isLoading = false;
+            requestRender();
+          }, (err) => {
+            isLoading = false;
+            console.error("Listener barang error:", err);
+            showToast("Gagal memuat data barang.", "error");
+            requestRender();
+          });
+      } catch (err) {
+        isLoading = false;
+        console.error("Gagal memulai listener barang:", err);
+        requestRender();
+      }
     }
 
     if (!unsubscribers.priceTrend) {
-      unsubscribers.priceTrend = db.collection("history_stok")
-        .orderBy("waktu", "desc")
-        .limit(200)
-        .onSnapshot((snapshot) => {
-          const map = {};
+      try {
+        unsubscribers.priceTrend = db.collection("history_stok")
+          .orderBy("waktu", "desc")
+          .limit(200)
+          .onSnapshot((snapshot) => {
+            const map = {};
 
-          snapshot.docs.forEach((doc) => {
-            const item = doc.data();
-            if (!map[item.barangId] && item.priceTrend && item.barangId) {
-              map[item.barangId] = item.priceTrend;
-            }
+            snapshot.docs.forEach((doc) => {
+              const item = doc.data();
+              if (!map[item.barangId] && item.priceTrend && item.barangId) {
+                map[item.barangId] = item.priceTrend;
+              }
+            });
+
+            latestPriceTrendMap = map;
+
+            requestRender();
+          }, (err) => {
+            console.error("Listener trend harga error:", err);
           });
-
-          latestPriceTrendMap = map;
-
-          if (activePage === "gudang") renderTable();
-        }, (err) => {
-          console.error("Listener trend harga error:", err);
-        });
+      } catch (err) {
+        console.error("Gagal memulai listener trend harga:", err);
+      }
     }
   }
 
@@ -508,6 +538,16 @@ document.addEventListener("DOMContentLoaded", () => {
   // RENDER GUDANG
   // ============================================================
   function renderTable() {
+    if (isLoading) {
+      tabel.innerHTML = `
+        <div class="skeleton-container">
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+        </div>`;
+      return;
+    }
+
     const filtered = getFilteredBarangGudang();
 
     const filteredEl = document.getElementById("statFiltered");
@@ -821,11 +861,11 @@ document.addEventListener("DOMContentLoaded", () => {
         priceTrend: docId
           ? trend
           : {
-              status: "baru",
-              icon: "✦",
-              className: "trend-new",
-              text: "Barang baru"
-            }
+            status: "baru",
+            icon: "✦",
+            className: "trend-new",
+            text: "Barang baru"
+          }
       });
 
       showToast(`💾 ${payload.nama} berhasil disimpan!`, "success");
@@ -862,17 +902,21 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const collections = ["history_belanja", "history_stok"];
 
-    for (const name of collections) {
-      const snap = await db.collection(name)
-        .where("waktu", "<", duaMingguLalu)
-        .get();
+    try {
+      for (const name of collections) {
+        const snap = await db.collection(name)
+          .where("waktu", "<", duaMingguLalu)
+          .get();
 
-      const batch = db.batch();
-      snap.forEach((doc) => batch.delete(doc.ref));
+        const batch = db.batch();
+        snap.forEach((doc) => batch.delete(doc.ref));
 
-      if (!snap.empty) {
-        await batch.commit();
+        if (!snap.empty) {
+          await batch.commit();
+        }
       }
+    } catch (err) {
+      console.error("Gagal hapus data lama:", err);
     }
   }
 
@@ -887,27 +931,28 @@ document.addEventListener("DOMContentLoaded", () => {
     if (historyListenersAttached) return;
     historyListenersAttached = true;
 
-    unsubscribers.historyBelanja = db.collection("history_belanja")
-      .orderBy("waktu", "desc")
-      .limit(30)
-      .onSnapshot((snapshot) => {
-        if (!snapshot.docs.length) {
-          listHBelanja.innerHTML = `
+    try {
+      unsubscribers.historyBelanja = db.collection("history_belanja")
+        .orderBy("waktu", "desc")
+        .limit(30)
+        .onSnapshot((snapshot) => {
+          if (!snapshot.docs.length) {
+            listHBelanja.innerHTML = `
             <div class="empty-state">
               <span class="empty-state-icon">🛒</span>
               Belum ada riwayat belanja.
             </div>
           `;
-          return;
-        }
+            return;
+          }
 
-        listHBelanja.innerHTML = snapshot.docs.map((doc) => {
-          const data = doc.data();
-          const waktuTampil = data.waktu
-            ? data.waktu.toDate().toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })
-            : "Baru saja";
+          listHBelanja.innerHTML = snapshot.docs.map((doc) => {
+            const data = doc.data();
+            const waktuTampil = data.waktu
+              ? data.waktu.toDate().toLocaleString("id-ID", { dateStyle: "short", timeStyle: "short" })
+              : "Baru saja";
 
-          return `
+            return `
             <div class="history-card">
               <div class="history-info">
                 <span class="history-tag tag-belanja">${escHtml(data.warung || "Warung")}</span>
@@ -917,48 +962,55 @@ document.addEventListener("DOMContentLoaded", () => {
               <div class="history-date">${waktuTampil}</div>
             </div>
           `;
-        }).join("");
-      });
+          }).join("");
+        }, (err) => {
+          console.error("History belanja error:", err);
+          listHBelanja.innerHTML = `<div class="empty-state">Gagal memuat data.</div>`;
+        });
+    } catch (err) {
+      console.error("Gagal memulai listener history belanja:", err);
+    }
 
-    unsubscribers.historyStok = db.collection("history_stok")
-      .orderBy("waktu", "desc")
-      .limit(30)
-      .onSnapshot((snapshot) => {
-        if (!snapshot.docs.length) {
-          listHUpdateData.innerHTML = `
+    try {
+      unsubscribers.historyStok = db.collection("history_stok")
+        .orderBy("waktu", "desc")
+        .limit(30)
+        .onSnapshot((snapshot) => {
+          if (!snapshot.docs.length) {
+            listHUpdateData.innerHTML = `
             <div class="empty-state">
               <span class="empty-state-icon">📦</span>
               Belum ada riwayat update barang.
             </div>
           `;
-          return;
-        }
+            return;
+          }
 
-        listHUpdateData.innerHTML = snapshot.docs.map((doc) => {
-          const data = doc.data();
+          listHUpdateData.innerHTML = snapshot.docs.map((doc) => {
+            const data = doc.data();
 
-          const tagClass = data.tipe === "Barang Baru"
-            ? "tag-baru"
-            : data.tipe === "Hapus"
-              ? "tag-hapus"
-              : "tag-update";
+            const tagClass = data.tipe === "Barang Baru"
+              ? "tag-baru"
+              : data.tipe === "Hapus"
+                ? "tag-hapus"
+                : "tag-update";
 
-          const tanggal = data.waktu
-            ? data.waktu.toDate().toLocaleString("id-ID", {
+            const tanggal = data.waktu
+              ? data.waktu.toDate().toLocaleString("id-ID", {
                 dateStyle: "medium",
                 timeStyle: "short"
               })
-            : "Baru saja";
+              : "Baru saja";
 
-          const trend = data.priceTrend || {
-            status: "tetap",
-            icon: "•",
-            className: "trend-flat",
-            text: "Harga tetap"
-          };
+            const trend = data.priceTrend || {
+              status: "tetap",
+              icon: "•",
+              className: "trend-flat",
+              text: "Harga tetap"
+            };
 
-          const priceBlock = data.tipe === "Update"
-            ? `
+            const priceBlock = data.tipe === "Update"
+              ? `
               <div class="history-price-box">
                 <div class="history-price-row">
                   <span class="price-old">${rupiah(data.hargaLama)}</span>
@@ -971,11 +1023,11 @@ document.addEventListener("DOMContentLoaded", () => {
                 </div>
               </div>
             `
-            : data.tipe === "Barang Baru"
-              ? `<div class="history-trend trend-new"><span class="trend-icon">✦</span><span>Harga awal ${rupiah(data.hargaBaru)}</span></div>`
-              : `<div class="history-trend trend-delete"><span class="trend-icon">🗑️</span><span>Data dihapus</span></div>`;
+              : data.tipe === "Barang Baru"
+                ? `<div class="history-trend trend-new"><span class="trend-icon">✦</span><span>Harga awal ${rupiah(data.hargaBaru)}</span></div>`
+                : `<div class="history-trend trend-delete"><span class="trend-icon">🗑️</span><span>Data dihapus</span></div>`;
 
-          return `
+            return `
             <div class="history-card history-card-update">
               <div class="history-info history-info-update">
                 <div class="history-top-row">
@@ -995,14 +1047,30 @@ document.addEventListener("DOMContentLoaded", () => {
               <div class="history-date">${tanggal}</div>
             </div>
           `;
-        }).join("");
-      });
+          }).join("");
+        }, (err) => {
+          console.error("History stok error:", err);
+          listHUpdateData.innerHTML = `<div class="empty-state">Gagal memuat data.</div>`;
+        });
+    } catch (err) {
+      console.error("Gagal memulai listener history stok:", err);
+    }
   }
 
   // ============================================================
   // BELANJA
   // ============================================================
   function renderBelanja() {
+    if (isLoading) {
+      listBelanja.innerHTML = `
+        <div class="skeleton-container">
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+        </div>`;
+      return;
+    }
+
     const filtered = getFilteredBarangBelanja();
 
     if (!filtered.length) {
@@ -1221,6 +1289,16 @@ document.addEventListener("DOMContentLoaded", () => {
   // KASIR
   // ============================================================
   function renderKasir() {
+    if (isLoading) {
+      daftarBarangKasir.innerHTML = `
+        <div class="skeleton-container">
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+          <div class="skeleton-card"></div>
+        </div>`;
+      return;
+    }
+
     if (!allData.length) {
       daftarBarangKasir.innerHTML = `
         <div class="empty-state">

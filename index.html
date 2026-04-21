@@ -1,12 +1,15 @@
 <!DOCTYPE html>
 <html lang="id">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Warung Barokah</title>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+    rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
   <!-- ==================== LOGIN PAGE ==================== -->
@@ -18,8 +21,9 @@
       <div class="login-logo">🏪</div>
       <h2 class="login-title">Warung Barokah</h2>
       <p class="login-subtitle">Masuk untuk mengelola warung</p>
-      <input type="email"    id="email"    class="login-input" placeholder="📧 Alamat Email" autocomplete="email">
-      <input type="password" id="password" class="login-input" placeholder="🔒 Kata Sandi"  autocomplete="current-password">
+      <input type="email" id="email" class="login-input" placeholder="📧 Alamat Email" autocomplete="email">
+      <input type="password" id="password" class="login-input" placeholder="🔒 Kata Sandi"
+        autocomplete="current-password">
       <button id="btnLogin" class="btn-login">Masuk →</button>
       <p id="loginError" class="login-error"></p>
     </div>
@@ -193,14 +197,14 @@
     <button class="fab-keranjang" id="btnScrollKeranjang" title="Ke Keranjang" style="display:none;">🛒</button>
 
     <!-- ==== HALAMAN KASIR ==== -->
-      <div id="pageKasir" class="page" style="display:none;">
-        <div class="page-header">
-          <h2>Kasir Penjualan 💰</h2>
-        </div>
-  
-        <div class="belanja-layout">
-          <div id="daftarBarangKasir" class="barang-list-container"></div>
-    
+    <div id="pageKasir" class="page" style="display:none;">
+      <div class="page-header">
+        <h2>Kasir Penjualan 💰</h2>
+      </div>
+
+      <div class="belanja-layout">
+        <div id="daftarBarangKasir" class="barang-list-container"></div>
+
         <div class="cart-panel">
           <h3>🛒 Keranjang</h3>
           <div id="listKeranjangKasir"></div>
@@ -208,8 +212,8 @@
           <h2 id="totalKasir">Total: Rp 0</h2>
           <button class="btn-simpan" onclick="prosesTransaksi()">Selesaikan</button>
         </div>
-        </div>
       </div>
+    </div>
 
   </div><!-- end .app -->
 
@@ -247,7 +251,7 @@
           <label>Isi Per Satuan Besar (Rahasia 🔒)</label>
           <input type="number" id="isiSatuan" placeholder="Isi Satuan Contoh: isi 10 atau isi 12" required min="0">
         </div>
-        
+
         <div class="input-group">
           <label>Harga Jual (Tampilan Depan)</label>
           <input type="text" id="catatanUtama" placeholder="Contoh: 1/4: 5rb | 1kg: 18rb" required>
@@ -318,4 +322,5 @@
   <script src="https://unpkg.com/html5-qrcode"></script>
   <script src="app.js" defer></script>
 </body>
+
 </html>
